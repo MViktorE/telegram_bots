@@ -1,3 +1,4 @@
 pandas
 python-telegram-bot==13.13
 matplotlib
+schedule
