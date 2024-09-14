@@ -105,7 +105,7 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    handle_message()
+    handle_message(update=updater, context=updater)
 
     plot_graph(context=updater)
 
