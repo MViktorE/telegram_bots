@@ -111,11 +111,12 @@ def main() -> None:
             time.sleep(1)
             counter += 1
             if counter > 5:
+                updater.stop()
                 break            
 
     threading.Thread(target=run_scheduler).start()
 
-    updater.start_polling(pool_timeout=10)
+    updater.start_polling()
     updater.idle()
 
     plot_graph(context=updater)
