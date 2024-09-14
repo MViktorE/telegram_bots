@@ -14,6 +14,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 YOUR_TOKEN_HERE = os.getenv('TELEGRAM_TOKEN')
 MY_CHAT_ID = os.getenv('CHAT_ID')
 
+gCounter = 10 # seconds
 # Файл для хранения данных пользователей
 DATA_FILE = 'user_data.json'
 
@@ -24,7 +25,6 @@ def load_user_data():
             return json.load(f)
     return {}
 
-
 # Функция для сохранения данных в файл
 def save_user_data():
     with open(DATA_FILE, 'w') as f:
@@ -33,10 +33,8 @@ def save_user_data():
 # Загрузка старых данных при запуске
 user_data = load_user_data()
 
-
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Привет! Отправь мне сообщения с числами, и я построю график раз в сутки!')
-
 
 def handle_message(update: Update, context: CallbackContext) -> None:
 
@@ -63,8 +61,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     except ValueError:
         update.message.reply_text('Пожалуйста, отправьте число.')
 
-
-def plot_graph(context: CallbackContext) -> None:
+def plot_graph(chat_id: str, context: CallbackContext) -> None:
     plt.figure(figsize=(10, 5))
     
     for user_id, data in user_data.items():
@@ -96,8 +93,11 @@ def plot_graph(context: CallbackContext) -> None:
     # Отправляем график в чат
     context.bot.send_photo(chat_id=MY_CHAT_ID, photo=buf)
 
+def scheduled_job(context: CallbackContext) -> None:
+    chat_id = 0  # Получаем идентификатор чата из контекста задачи
+    plot_graph(chat_id, context)
 
-def main():
+def main() -> None:
     updater = Updater(YOUR_TOKEN_HERE)
 
     dispatcher = updater.dispatcher
@@ -105,12 +105,20 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    handle_message(update=updater, context=updater)
+    # Планируем задачу на полночь с идентификатором чата
+    schedule.every().day.at("00:33").do(scheduled_job, context=updater)
 
-    plot_graph(context=updater)
+    # Запускаем планировщик в отдельном потоке
+    def run_scheduler():
+        while gCounter:
+            schedule.run_pending()
+            time.sleep(1)
+            gCounter -= 1
 
-    return 0
+    threading.Thread(target=run_scheduler).start()
 
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == '__main__':
     main()
