@@ -24,6 +24,7 @@ def load_user_data():
             return json.load(f)
     return {}
 
+
 # Функция для сохранения данных в файл
 def save_user_data():
     with open(DATA_FILE, 'w') as f:
@@ -32,8 +33,10 @@ def save_user_data():
 # Загрузка старых данных при запуске
 user_data = load_user_data()
 
+
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Привет! Отправь мне сообщения с числами, и я построю график раз в сутки!')
+
 
 def handle_message(update: Update, context: CallbackContext) -> None:
 
@@ -60,7 +63,8 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     except ValueError:
         update.message.reply_text('Пожалуйста, отправьте число.')
 
-def plot_graph(chat_id: str, context: CallbackContext) -> None:
+
+def plot_graph(context: CallbackContext) -> None:
     plt.figure(figsize=(10, 5))
     
     for user_id, data in user_data.items():
@@ -92,11 +96,8 @@ def plot_graph(chat_id: str, context: CallbackContext) -> None:
     # Отправляем график в чат
     context.bot.send_photo(chat_id=MY_CHAT_ID, photo=buf)
 
-def scheduled_job(context: CallbackContext) -> None:
-    chat_id = 0  # Получаем идентификатор чата из контекста задачи
-    plot_graph(chat_id, context)
 
-def main() -> None:
+def main():
     updater = Updater(YOUR_TOKEN_HERE)
 
     dispatcher = updater.dispatcher
@@ -104,19 +105,10 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    # Планируем задачу на полночь с идентификатором чата
-    schedule.every().day.at("00:33").do(scheduled_job, context=updater)
+    plot_graph(context=updater)
 
-    # Запускаем планировщик в отдельном потоке
-    def run_scheduler():
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
+    return 0
 
-    threading.Thread(target=run_scheduler).start()
-
-    updater.start_polling()
-    updater.idle()
 
 if __name__ == '__main__':
     main()
