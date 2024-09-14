@@ -92,9 +92,6 @@ def plot_graph(chat_id: str, context: CallbackContext) -> None:
     # Отправляем график в чат
     context.bot.send_photo(chat_id=MY_CHAT_ID, photo=buf)
 
-def scheduled_job(context: CallbackContext) -> None:
-    chat_id = 0  # Получаем идентификатор чата из контекста задачи
-    plot_graph(chat_id, context)
 
 def main() -> None:
     updater = Updater(YOUR_TOKEN_HERE)
@@ -104,18 +101,22 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
-    # Планируем задачу на полночь с идентификатором чата
-    schedule.every().day.at("00:33").do(scheduled_job, context=updater)
+
 
     # Запускаем планировщик в отдельном потоке
     def run_scheduler():
-        schedule.run_pending()
-        time.sleep(2)
+        counter = 0
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+            counter += 1
+            if counter > 5:
+                break            
 
     threading.Thread(target=run_scheduler).start()
 
-    updater.start_polling()
-    updater.idle()
+    plot_graph(context=updater)
+    
 
 if __name__ == '__main__':
     main()
