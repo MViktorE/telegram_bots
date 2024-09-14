@@ -23,6 +23,12 @@ user_data = load_user_data()
 
 def main() -> None:
     print("Hello 2024!")
+    
+    TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_TOKEN')
+    CHAT_ID = os.getenv('CHAT_ID')
+
+    print(CHAT_ID)
+    
     user_id = 10
     date = datetime.datetime.now().isoformat()  # Сохраняем дату в ISO формате
     
