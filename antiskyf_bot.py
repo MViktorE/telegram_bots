@@ -108,16 +108,21 @@ def main() -> None:
         counter = 0
         while True:
             schedule.run_pending()
+            print("In sheduler!!!")
             time.sleep(1)
             counter += 1
             if counter > 5:
                 updater.stop()
-                break            
-
+                break   
+                
+    print("start tread")
     threading.Thread(target=run_scheduler).start()
-
+    
+    print("start polling")
     updater.start_polling()
+    print("idle")
     updater.idle()
+    
 
     plot_graph(context=updater)
     
