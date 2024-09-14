@@ -60,7 +60,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     except ValueError:
         update.message.reply_text('Пожалуйста, отправьте число.')
 
-def plot_graph(chat_id: str, context: CallbackContext) -> None:
+def plot_graph(context: CallbackContext) -> None:
     plt.figure(figsize=(10, 5))
     
     for user_id, data in user_data.items():
