@@ -14,7 +14,6 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 YOUR_TOKEN_HERE = os.getenv('TELEGRAM_TOKEN')
 MY_CHAT_ID = os.getenv('CHAT_ID')
 
-gCounter = 10 # seconds
 # Файл для хранения данных пользователей
 DATA_FILE = 'user_data.json'
 
@@ -110,10 +109,8 @@ def main() -> None:
 
     # Запускаем планировщик в отдельном потоке
     def run_scheduler():
-        while gCounter:
-            schedule.run_pending()
-            time.sleep(1)
-            gCounter -= 1
+        schedule.run_pending()
+        time.sleep(2)
 
     threading.Thread(target=run_scheduler).start()
 
