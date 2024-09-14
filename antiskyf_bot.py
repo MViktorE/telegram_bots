@@ -115,6 +115,9 @@ def main() -> None:
 
     threading.Thread(target=run_scheduler).start()
 
+    updater.start_polling()
+    updater.idle()
+
     plot_graph(context=updater)
     
 
