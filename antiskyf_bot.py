@@ -122,13 +122,14 @@ def main() -> None:
     print("start polling")
     updater.start_polling()
     print("idle")
-    updater.idle()
-    print("stop")
-    updater.stop()
+    # updater.idle()
     
 
     plot_graph(context=updater)
-    sys.exit(1)    
+    print("stop")
+    updater.stop()
+   
+    sys.exit(0)    
 
 if __name__ == '__main__':
     main()
