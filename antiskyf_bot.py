@@ -28,7 +28,7 @@ def load_user_data():
 # Функция для сохранения данных в файл
 def save_user_data():
     with open(DATA_FILE, 'w') as f:
-        json.dump(user_data, f, default=str)
+        json.dump(user_data, f, sort_keys=True, indent=4)
 
 # Загрузка старых данных при запуске
 user_data = load_user_data()
