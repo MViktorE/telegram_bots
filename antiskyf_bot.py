@@ -95,7 +95,7 @@ def plot_graph(context: CallbackContext) -> None:
     context.bot.send_photo(chat_id=MY_CHAT_ID, photo=buf)
 
 
-def main() -> None:
+def main() -> int:
     updater = Updater(YOUR_TOKEN_HERE)
 
     dispatcher = updater.dispatcher
@@ -123,13 +123,14 @@ def main() -> None:
     updater.start_polling()
     print("idle")
     # updater.idle()
-    
 
+    time.sleep(3)
     plot_graph(context=updater)
     print("stop")
     updater.stop()
-   
-    sys.exit(0)    
+
+    return 0  
+        
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
