@@ -62,6 +62,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
         update.message.reply_text('Пожалуйста, отправьте число.')
 
 def plot_graph(context: CallbackContext) -> None:
+    print("plot start")
     plt.figure(figsize=(10, 5))
     
     for user_id, data in user_data.items():
@@ -121,7 +122,9 @@ def main() -> None:
     print("start polling")
     updater.start_polling()
     print("idle")
-   # updater.idle()
+    updater.idle()
+    print("stop")
+    updater.stop()
     
 
     plot_graph(context=updater)
