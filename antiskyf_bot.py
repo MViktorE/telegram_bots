@@ -113,7 +113,6 @@ def main() -> None:
             time.sleep(1)
             counter += 1
             if counter > 5:
-                sys.exit(0)
                 break   
                 
     print("start tread")
@@ -126,7 +125,7 @@ def main() -> None:
     
 
     plot_graph(context=updater)
-    
+    sys.exit(1)    
 
 if __name__ == '__main__':
     main()
