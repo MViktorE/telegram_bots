@@ -1,4 +1,5 @@
 import json
+import sys
 import os
 import datetime
 import pandas as pd
@@ -112,14 +113,14 @@ def main() -> None:
             time.sleep(1)
             counter += 1
             if counter > 5:
-                updater.stop()
+                sys.exit(0)
                 break   
                 
     print("start tread")
     threading.Thread(target=run_scheduler).start()
     
     print("start polling")
-   # updater.start_polling()
+    updater.start_polling()
     print("idle")
    # updater.idle()
     
