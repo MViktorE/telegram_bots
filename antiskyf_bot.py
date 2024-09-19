@@ -41,7 +41,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     #print(update.message.from_user.first_name)
     #print(bot.get_chat_member(update.message.from_user.id))
     user_id = str(update.message.from_user.first_name)  # Преобразуем в строку для JSON
-    text = update.message.text
+    text = update.message.text.replace(',','.')
 
     try:
         number = float(text)
