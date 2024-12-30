@@ -1,14 +1,15 @@
 import json
 import sys
 import os
-import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
 import threading
 import time
 import schedule
-from telegram import Update, bot
+import re
+from datetime import datetime
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Секретики :)
@@ -36,30 +37,77 @@ user_data = load_user_data()
 def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Привет! Отправь мне сообщения с числами, и я построю график раз в сутки!')
 
-def handle_message(update: Update, context: CallbackContext) -> None:
+class ResponseUpon:
+    """Содержит возможные ответы чат бота"""
+    @staticmethod
+    def ValidWeight(weight: float) -> str:
+        return f'Получено число: {weight}'
 
+    @staticmethod
+    def InvalidWeight(weight: float) -> str:
+        return f'Значение "{weight}" не похоже на вес'
+
+    @staticmethod
+    def NonNumericInput() -> str:
+        return 'Пожалуйста, отправьте сообщение с числом.'
+
+    @staticmethod
+    def MultipleNumbers() -> str:
+        return 'Похоже, что были отправлены два числа. Так не пойдет'
+
+
+class WeightUtils:
+    """Проверка и валидация веса"""
+    MIN_WEIGHT = 30.0
+    MAX_WEIGHT = 150.0
+
+    @staticmethod
+    def is_plausible_weight(value: float) -> bool:
+        """Check if the given value is within a plausible weight range."""
+        return WeightUtils.MIN_WEIGHT <= value <= WeightUtils.MAX_WEIGHT
+
+    @staticmethod
+    def extract_numbers_from_text(text: str) -> list[float]:
+        """Extract numbers from a text message."""
+        matches = re.findall(r'(\d+(?:[.,]\d+)?)', text)
+        return [float(match.replace(',', '.')) for match in matches]
+
+
+def handle_message(update: Update, context: CallbackContext) -> None:
     #print(update.message.from_user.first_name)
     #print(bot.get_chat_member(update.message.from_user.id))
     user_id = str(update.message.from_user.first_name)  # Преобразуем в строку для JSON
-    text = update.message.text.replace(',','.')
+    user_message = update.message.text
+    # Extract numbers from the message
+    numbers = WeightUtils.extract_numbers_from_text(user_message)
 
-    try:
-        number = float(text)
-        date = datetime.datetime.now().isoformat()  # Сохраняем дату в ISO формате
-        
-        # Добавляем данные в словарь
-        if user_id not in user_data:
-            user_data[user_id] = {'dates': [], 'values': []}
-        
-        user_data[user_id]['dates'].append(date)
-        user_data[user_id]['values'].append(number)
-        
-        save_user_data()  # Сохраняем данные после обновления
-        
-        update.message.reply_text(f'Получено число: {number}')
-        
-    except ValueError:
-        update.message.reply_text('Пожалуйста, отправьте число.')
+    if not numbers:
+        update.message.reply_text(ResponseUpon.NonNumericInput())
+        return
+
+    # Если в сообщении больше 1 числа, то лучше выдать ошибку
+    if len(numbers) > 1:
+        update.message.reply_text(ResponseUpon.MultipleNumbers())
+        return
+
+    weight = numbers[0]
+
+    if not WeightUtils.is_plausible_weight(weight):
+        update.message.reply_text(ResponseUpon.InvalidWeight(weight))
+        return
+
+    # Добавляем данные в словарь
+    if user_id not in user_data:
+        user_data[user_id] = {'dates': [], 'values': []}
+
+    date = datetime.now().isoformat()  # Сохраняем дату в ISO формате
+
+    user_data[user_id]['dates'].append(date)
+    user_data[user_id]['values'].append(weight)
+
+    save_user_data()  # Сохраняем данные после обновления
+
+    update.message.reply_text(ResponseUpon.ValidWeight(weight))
 
 def plot_graph(context: CallbackContext) -> None:
     print("plot start")
