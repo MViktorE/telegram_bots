@@ -8,8 +8,9 @@ import threading
 import time
 import schedule
 import re
+import logging
 from datetime import datetime
-from telegram import Update
+from telegram import Update, bot
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # Секретики :)
@@ -18,6 +19,12 @@ MY_CHAT_ID = os.getenv('CHAT_ID')
 
 # Файл для хранения данных пользователей
 DATA_FILE = 'user_data.json'
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 # Функция для загрузки данных из файла
 def load_user_data():
@@ -34,18 +41,45 @@ def save_user_data():
 # Загрузка старых данных при запуске
 user_data = load_user_data()
 
+def is_user_in_group(user_name: str):
+    return user_name in user_data
+
 def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Привет! Отправь мне сообщения с числами, и я построю график раз в сутки!')
+    logger.info(f'In /start command')
+    update.message.reply_text(ResponseUpon.Start())
+
+def add_me(update: Update, context: CallbackContext) -> None:
+    """Register new user"""
+    logger.info(f'In /add_me command')
+    user_name = str(update.message.from_user.first_name)
+    if is_user_in_group(user_name):
+        update.message.reply_text(ResponseUpon.AlreadyInTheUserList(user_name))
+        return
+    # Add into table
+    user_data[user_name] = {'dates': [], 'values': []}
+    if not handle_message(update, context):
+        del user_data[user_name]
+        update.message.reply_text(ResponseUpon.InvalidAddMe(user_name))
+        return
+
+    update.message.reply_text(ResponseUpon.ValidAddMe(user_name))
 
 class ResponseUpon:
     """Содержит возможные ответы чат бота"""
     @staticmethod
+    def Start() -> str:
+        return \
+            ('Привет!\n'
+            'Отправь мне сообщения с числами, и я построю график раз в сутки!\n'
+            'Но перед этим зарегистрируйся с помощью команды /add_me <начальное_значение_веса> и я внесу тебя в таблицу\n'
+            'А пока ты не зарегистрировался, я тебя буду игнорировать')
+    @staticmethod
     def ValidWeight(weight: float) -> str:
-        return f'Получено число: {weight}'
+        return f'Получено число: {weight}.'
 
     @staticmethod
     def InvalidWeight(weight: float) -> str:
-        return f'Значение "{weight}" не похоже на вес'
+        return f'Значение "{weight}" не похоже на вес.'
 
     @staticmethod
     def NonNumericInput() -> str:
@@ -53,7 +87,19 @@ class ResponseUpon:
 
     @staticmethod
     def MultipleNumbers() -> str:
-        return 'Похоже, что были отправлены два числа. Так не пойдет'
+        return 'Похоже, что были отправлены два числа. Так не пойдет.'
+
+    @staticmethod
+    def AlreadyInTheUserList(user_name: str) -> str:
+        return f'{user_name}, ты уже в участниках.'
+
+    @staticmethod
+    def ValidAddMe(user_name: str) -> str:
+        return f'{user_name}, ты в списке участников.'
+
+    @staticmethod
+    def InvalidAddMe(user_name: str) -> str:
+        return f'{user_name}, не получилось тебя добавить.'
 
 
 class WeightUtils:
@@ -73,46 +119,50 @@ class WeightUtils:
         return [float(match.replace(',', '.')) for match in matches]
 
 
-def handle_message(update: Update, context: CallbackContext) -> None:
-    #print(update.message.from_user.first_name)
-    #print(bot.get_chat_member(update.message.from_user.id))
-    user_id = str(update.message.from_user.first_name)  # Преобразуем в строку для JSON
-    user_message = update.message.text
+def handle_message(update: Update, context: CallbackContext) -> bool:
+    logger.info(f"Message received: {update.message.text}")
+    logger.info(f"From: {update.message.from_user.first_name}")
+    logger.info(f"His id: {update.message.from_user.id}")
+    user_name = str(update.message.from_user.first_name)  # Преобразуем в строку для JSON
+
+    # Ignore if not registered user
+    if not is_user_in_group(user_name):
+        logger.warning(f"{user_name} is not participant. So ignore him.")
+        return False
+
     # Extract numbers from the message
-    numbers = WeightUtils.extract_numbers_from_text(user_message)
+    numbers = WeightUtils.extract_numbers_from_text(update.message.text)
 
     if not numbers:
         update.message.reply_text(ResponseUpon.NonNumericInput())
-        return
+        return False
 
     # Если в сообщении больше 1 числа, то лучше выдать ошибку
     if len(numbers) > 1:
         update.message.reply_text(ResponseUpon.MultipleNumbers())
-        return
+        return False
 
     weight = numbers[0]
 
     if not WeightUtils.is_plausible_weight(weight):
         update.message.reply_text(ResponseUpon.InvalidWeight(weight))
-        return
-
-    # Добавляем данные в словарь
-    if user_id not in user_data:
-        user_data[user_id] = {'dates': [], 'values': []}
+        return False
 
     date = datetime.now().isoformat()  # Сохраняем дату в ISO формате
 
-    user_data[user_id]['dates'].append(date)
-    user_data[user_id]['values'].append(weight)
+    user_data[user_name]['dates'].append(date)
+    user_data[user_name]['values'].append(weight)
 
     save_user_data()  # Сохраняем данные после обновления
 
     update.message.reply_text(ResponseUpon.ValidWeight(weight))
 
+    return True
+
 def plot_graph(context: CallbackContext) -> None:
-    print("plot start")
+    logger.info('Plot start')
     plt.figure(figsize=(10, 5))
-    
+
     for user_id, data in user_data.items():
         if not data['values']:
             continue
@@ -124,7 +174,7 @@ def plot_graph(context: CallbackContext) -> None:
         })
 
         # Строим график
-    
+
         plt.plot(df['dates'], df['values'], marker='o', label=f'{user_id}')
 
     plt.title('Вес, кг')
@@ -146,35 +196,36 @@ def plot_graph(context: CallbackContext) -> None:
 def main() -> int:
     updater = Updater(YOUR_TOKEN_HERE)
 
-    dispatcher = updater.dispatcher
+    # dispatcher to register command handlers
+    dp = updater.dispatcher
 
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    # user commands
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("add_me", add_me))
 
-
+    # handle messages
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
 
     # Запускаем планировщик в отдельном потоке
     def run_scheduler():
         counter = 0
         while True:
             schedule.run_pending()
-            print("In sheduler!!!")
+            logger.info("In scheduler")
             time.sleep(1)
             counter += 1
             if counter > 5:
                 break   
                 
-    print("start tread")
+    logger.info("Start scheduler thread")
     threading.Thread(target=run_scheduler).start()
     
-    print("start polling")
+    logger.info("Bot is polling..")
     updater.start_polling()
-    print("idle")
-    # updater.idle()
 
     time.sleep(3)
     plot_graph(context=updater)
-    print("stop")
+    logger.info("Bot is stop polling")
     updater.stop()
 
     return 0  
