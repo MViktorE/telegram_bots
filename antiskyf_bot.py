@@ -8,6 +8,7 @@ import threading
 import time
 import schedule
 import re
+import random
 import logging
 from datetime import datetime
 from telegram import Update, bot
@@ -19,6 +20,8 @@ MY_CHAT_ID = os.getenv('CHAT_ID')
 
 # Файл для хранения данных пользователей
 DATA_FILE = 'user_data.json'
+# Файл для хранения картинок и анимаций
+GIFS_FILE = 'gifs.json'
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -192,6 +195,28 @@ def plot_graph(context: CallbackContext) -> None:
     # Отправляем график в чат
     context.bot.send_photo(chat_id=MY_CHAT_ID, photo=buf)
 
+def send_birthday_message(context: CallbackContext, user_name: str):
+    if not os.path.exists(GIFS_FILE):
+        return
+    with open(GIFS_FILE, 'r') as f:
+        gifs = json.load(f)
+    gif_list = gifs.get("Birthdays", {}).get("funny", [])
+    gif_url = random.choice(gif_list)
+
+    context.bot.send_animation(
+        animation=gif_url,
+        chat_id=MY_CHAT_ID,
+        caption=f"С Днем Рождения, {user_name}! 🎉🎂"
+    )
+
+def check_and_send_birthdays(context: CallbackContext, user_data: dict):
+    logger.info("Check for birthday...")
+    today = datetime.now().strftime("%d-%m")
+    for user, details in user_data.items():
+        if details.get('birthday') == today:
+            logger.info(f"Today is {user}'s birthday!")
+            send_birthday_message(context, user)
+
 
 def main() -> int:
     updater = Updater(YOUR_TOKEN_HERE)
@@ -224,6 +249,7 @@ def main() -> int:
     updater.start_polling()
 
     time.sleep(3)
+    check_and_send_birthdays(updater, user_data)
     plot_graph(context=updater)
     logger.info("Bot is stop polling")
     updater.stop()
