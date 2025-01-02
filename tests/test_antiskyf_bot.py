@@ -1,7 +1,8 @@
 import pytest
 import json
 import os
-from unittest.mock import MagicMock
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 import antiskyf_bot as bot
 
 
@@ -10,7 +11,7 @@ def setup_user_data(monkeypatch):
     """Setup and cleanup for user_data.json."""
     # Create a temporary user_data.json file
     temp_file = "user_data.json"
-    initial_data = {"InGroupUser": {"dates": [], "values": []}}
+    initial_data = {"InGroupUser": {"birthday": '', "dates": [], "values": []}}
     with open(temp_file, "w") as f:
         json.dump(initial_data, f, indent=4)
 
@@ -130,4 +131,37 @@ def test_add_command(mock_update, mock_context):
     bot.add_me(mock_update, mock_context)
     mock_update.message.reply_text.assert_called_with(
         bot.ResponseUpon.InvalidAddMe("AnotherNotInGroupUser")
+    )
+    mock_update.message.reply_text.reset_mock()
+
+
+# Mock all dependencies by patching
+@patch("antiskyf_bot.random.choice", return_value="https://example.com/birthday.gif")
+@patch("antiskyf_bot.open", create=True)
+@patch("antiskyf_bot.os.path.exists", return_value=True)
+def test_check_and_send_birthdays(mock_exists, mock_open, mock_random_choice, mock_context):
+    # Prepare test data
+    mock_today = datetime.now().strftime("%d-%m")
+    bot.user_data["InGroupUser"]["birthday"] = mock_today
+    mock_context.bot = MagicMock()
+
+    # Mock the file object returned by open
+    mock_file = MagicMock()
+    mock_file.__enter__.return_value.read.return_value = json.dumps({
+        "Birthdays": {
+            "funny": [
+                "https://example.com/birthday.gif",
+                "https://example.com/another.gif"
+            ]
+        }
+    })
+    mock_open.return_value = mock_file
+
+    # Call tested function
+    bot.check_and_send_birthdays(mock_context, bot.user_data)
+
+    mock_context.bot.send_animation.assert_called_once_with(
+        animation="https://example.com/birthday.gif",
+        chat_id=bot.MY_CHAT_ID,
+        caption="С Днем Рождения, InGroupUser! 🎉🎂"
     )
